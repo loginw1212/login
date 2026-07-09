@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brawl Stars Admin Panel</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Arial Black', Gadget, sans-serif; }
+        body {
+            background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1920') no-repeat center center fixed;
+            background-size: cover; display: flex; height: 100vh; color: #fff; overflow: hidden;
+            position: relative;
+        }
+        
+        /* Panel boczny */
+        .sidebar {
+            width: 280px; background: rgba(15, 15, 30, 0.95); border-right: 4px solid #ffcc00;
+            display: flex; flex-direction: column; padding: 20px; box-shadow: 5px 0 15px rgba(0,0,0,0.5);
+            z-index: 10; transition: transform 0.3s ease, width 0.3s ease;
+            flex-shrink: 0;
+        }
+        .sidebar.collapsed {
+            transform: translateX(-280px);
+            width: 0;
+            padding: 20px 0;
+            border-right: none;
+        }
+
+        /* Przyciski ukrywania/pokazywania menu na samym dole */
+        .toggle-sidebar-btn {
+            background: #ffcc00;
+            color: #000;
+            border: 4px solid #ff4500;
+            border-radius: 8px;
+            padding: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-top: 10px;
+            transition: 0.2s;
+            text-shadow: none;
+        }
+        .toggle-sidebar-btn:hover {
+            background: #ff4500;
+            color: #fff;
+            border-color: #ffcc00;
+        }
+
+        /* Mały guzik aktywacyjny na dole ekranu, gdy menu jest całkiem schowane */
+        .floating-open-btn {
+            position: absolute;
+            left: 15px;
+            bottom: 15px;
+            z-index: 99;
+            background: #ffcc00;
+            color: #000;
+            border: 3px solid #ff4500;
+            border-radius: 8px;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            box-shadow: 3px 3px 10px rgba(0,0,0,0.5);
+        }
+        .floating-open-btn:hover {
+            background: #ff4500;
+            color: #fff;
+        }
+
+        .main-content {
+            flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; overflow-y: auto;
+        }
+
+        .profile-section {
+            text-align: center; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 2px solid #ffcc00;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .profile-name { font-size: 18px; color: #fff; margin-bottom: 5px; text-shadow: 1px 1px #000; }
+        .profile-rank { font-size: 14px; color: #00ffff; text-transform: uppercase; margin-bottom: 5px; }
+        .profile-coins { font-size: 16px; color: #ffcc00; text-shadow: 1px 1px #000; }
+
+        .sidebar-menu { display: flex; flex-direction: column; gap: 10px; flex: 1; overflow-y: auto; padding-right: 5px; }
+
+        .brawl-logo { width: 80px; height: 80px; margin: 0 auto 10px auto; border-radius: 50%; border: 3px solid #ffcc00; box-shadow: 0 0 10px rgba(255,204,0,0.5); object-fit: cover; background: #111; }
+        
+        .container { background: rgba(20,20,40,0.95); border: 4px solid #ffcc00; border-radius: 15px; padding: 30px; width: 380px; box-shadow: 0 0 25px #ffcc00; text-align: center; }
+        .container-wide { width: 520px; }
+        h2 { color: #ffcc00; text-shadow: 2px 2px #000; margin-bottom: 20px; font-size: 24px; text-transform: uppercase; }
+        .input-group { margin-bottom: 15px; text-align: left; }
+        label { display: block; margin-bottom: 5px; color: #00ffff; font-size: 14px; }
+        input, select, textarea { width: 100%; padding: 12px; border: 2px solid #ffcc00; border-radius: 8px; background: #222; color: #fff; font-size: 16px; }
+        textarea { resize: none; height: 80px; font-family: Arial, sans-serif; }
+        button { width: 100%; padding: 12px; background: #ff4500; border: 2px solid #ffcc00; border-radius: 8px; color: white; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase; text-shadow: 1px 1px #000; transition: 0.2s; }
+        button:hover { background: #ffcc00; color: #000; border-color: #ff4500; }
+        .btn-row { display: flex; gap: 10px; margin-top: 10px; }
+        .btn-row button { font-size: 12px; padding: 10px 5px; }
+        .error-msg { color: #ff3333; margin-top: 10px; font-size: 14px; display: none; }
+        .hidden { display: none !important; }
+        .menu-btn { margin-bottom: 0; background: #0088cc; font-size: 14px; padding: 10px; }
+        .logout-btn { background: #cc3333; margin-top: auto; flex-shrink: 0; }
+        
+        .user-list, .announcement-list, .chat-window, .games-list-scroll, .shop-list-scroll, .avatar-grid-scroll, .leaderboard-scroll { margin-top: 10px; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; max-height: 220px; overflow-y: auto; text-align: left; font-size: 14px; }
+        .shop-list-scroll { max-height: 300px; }
+        .avatar-grid-scroll { max-height: 320px; }
+        .leaderboard-scroll { max-height: 320px; }
+        .chat-window { max-height: 180px; height: 180px; border: 2px solid #ffcc00; background: rgba(10,10,25,0.9); margin-bottom: 10px; }
+        
+        .user-item, .announcement-item, .chat-message, .game-item-row, .shop-item-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 5px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .announcement-item, .chat-message, .game-item-row, .shop-item-row { flex-direction: column; align-items: flex-start; gap: 5px; }
+        
+        .game-item-row, .shop-item-row { background: rgba(255,255,255,0.05); border: 1px solid #ffcc00; border-radius: 6px; padding: 10px; width: 100%; }
+        .game-header-row, .shop-header-row { display: flex; justify-content: space-between; width: 100%; align-items: center; }
+        
+        .btn-small { border: 1px solid #ffcc00; border-radius: 4px; color: white; padding: 5px 10px; font-size: 11px; cursor: pointer; width: auto; text-transform: uppercase; font-weight: bold; }
+        .delete-btn { background: #cc3333; }
+        .delete-btn:hover { background: red; }
+        .play-btn, .buy-btn, .select-btn { background: #2ecc71; border-color: #fff; }
+        .play-btn:hover, .buy-btn:hover, .select-btn:hover { background: #27ae60; }
+        
+        .badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 5px; text-transform: uppercase; }
+        .badge-admin { background: #cc3333; color: #fff; border: 1px solid #ffcc00; }
+        .badge-user { background: #555; color: #eee; }
+        
+        .game-interactive-zone { background: #111; border: 3px solid #ffcc00; border-radius: 10px; padding: 20px; margin-top: 15px; text-align: center; }
+        .click-target-btn { font-size: 36px; background: #2ecc71; width: 110px; height: 110px; border-radius: 50%; border: 4px solid #fff; color: #fff; cursor: pointer; display: flex; justify-content: center; align-items: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); margin: 15px auto; transition: transform 0.1s; user-select: none; }
+        .click-target-btn:active { transform: scale(0.9); }
+
+        .shop-avatar-img { width: 55px; height: 55px; border-radius: 50%; border: 2px solid #ffcc00; object-fit: cover; margin-right: 12px; background: #111; }
+        .shop-bg-img { width: 75px; height: 45px; border-radius: 5px; border: 2px solid #ffcc00; object-fit: cover; margin-right: 12px; background: #111; }
+        .shop-item-left { display: flex; align-items: center; }
+
+        .avatar-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 10px 0; }
+        .avatar-card { background: rgba(255,255,255,0.05); border: 2px solid #555; border-radius: 10px; padding: 10px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .avatar-card.active { border-color: #2ecc71; box-shadow: 0 0 10px rgba(46,204,113,0.5); }
+        .avatar-card img { width: 65px; height: 65px; border-radius: 50%; border: 2px solid #ffcc00; object-fit: cover; background: #111; }
+        .avatar-card .bg-preview-rect { width: 100px; height: 60px; border-radius: 5px; border: 2px solid #ffcc00; object-fit: cover; background: #111; }
+
+        .chat-tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+        .chat-tab-btn { flex: 1; padding: 8px; font-size: 12px; background: #333; border: 2px solid #555; border-radius: 5px; cursor: pointer; color: #fff; text-transform: uppercase; }
+        .chat-tab-btn.active { background: #ff4500; border-color: #ffcc00; }
+        .chat-input-row { display: flex; gap: 8px; }
+        .chat-input-row input { flex: 1; }
+        .chat-input-row button { width: auto; padding: 0 20px; }
+
+        .brawl-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-family: sans-serif; text-align: left; }
+        .brawl-table th { background: #ff4500; color: #fff; padding: 10px; border: 2px solid #ffcc00; text-transform: uppercase; font-size: 12px; }
+        .brawl-table td { background: rgba(0,0,0,0.6); padding: 10px; border: 1px solid rgba(255,254,0,0.2); font-size: 14px; }
+        .brawl-table tr:nth-child(even) td { background: rgba(255,255,255,0.03); }
+        .rank-number { font-weight: bold; color: #ffcc00; }
+
+        .file-drop-zone { border: 2px dashed #ffcc00; padding: 15px; background: rgba(0,0,0,0.4); border-radius: 8px; text-align: center; cursor: pointer; font-size: 13px; color: #ccc; font-family: sans-serif; transition: 0.2s; }
+        .file-drop-zone:hover { background: rgba(255,204,0,0.1); color: #fff; }
+        .file-preview { width: 50px; height: 50px; border-radius: 50%; border: 2px solid #ffcc00; object-fit: cover; display: none; margin: 10px auto 0 auto; }
+        .file-preview-rect { width: 80px; height: 50px; border-radius: 5px; border: 2px solid #ffcc00; object-fit: cover; display: none; margin: 10px auto 0 auto; }
+        
+        .version-list { display: flex; flex-direction: column; gap: 15px; text-align: left; }
+        .version-card { background: rgba(255, 255, 255, 0.05); border: 2px solid #ffcc00; border-radius: 8px; padding: 15px; }
+        .version-card h4 { color: #ffcc00; margin-bottom: 5px; }
+        .version-card p { font-family: sans-serif; font-size: 13px; color: #ccc; margin-bottom: 10px; }
+        .download-link-btn { display: inline-block; background: #2ecc71; color: white; padding: 8px 15px; border-radius: 5px; text-decoration: none; font-size: 12px; text-transform: uppercase; font-weight: bold; }
+        .download-link-btn:hover { background: #27ae60; }
+    </style>
+</head>
+<body>
+
+    <button id="floating-open-btn" class="floating-open-btn hidden" onclick="toggleSidebar()">Otwórz menu</button>
+
+    <div id="sidebar-panel" class="sidebar collapsed">
+        <div class="profile-section">
+            <img id="user-profile-logo" class="brawl-logo" src="https://img.icons8.com/color/512/brawl-stars.png" alt="Profile">
+            <div id="profile-user-name" class="profile-name">Użytkownik</div>
+            <div id="profile-user-rank" class="profile-rank">[Ranga]</div>
+            <div class="profile-coins">🪙 <span id="profile-user-coins">0</span></div>
+        </div>
+        <div class="sidebar-menu">
+            <button class="menu-btn" onclick="showSection('games-box')" style="background:#2ecc71;">🎮 Salon Gier Brawl</button>
+            <button class="menu-btn" onclick="showSection('leaderboard-box')" style="background:#3498db;">🏆 Rankingi gier</button>
+            <button class="menu-btn" onclick="showSection('shop-box')" style="background:#f1c40f; color:#000;">🏪 Sklep za Coins</button>
+            <button class="menu-btn" onclick="showSection('my-avatars-box')" style="background:#00ffff; color:#000;">🖼️ Zmień awatar</button>
+            <button class="menu-btn" onclick="showSection('my-backgrounds-box')" style="background:#9b59b6; color:#fff;">🎨 Zmień tło</button>
+            <button class="menu-btn" onclick="showSection('donations-box')" style="background:#e67e22;">🎁 Wyślij darowiznę</button>
+            <button class="menu-btn" onclick="showSection('chat-box')" style="background:#e74c3c;">💬 Czat Gry</button>
+            <button class="menu-btn" onclick="showSection('announcements-box')" style="background:#9b59b6;">Ogłoszenia</button>
+            <button id="sidebar-create-acc-btn" class="menu-btn" onclick="showSection('create-account-box')">Zarządzaj loginami (Admin)</button>
+            <button class="menu-btn" onclick="showSection('change-own-password-box')" style="background:#e67e22;">Zmień moje hasło</button>
+            <button class="menu-btn" onclick="showSection('versions-box')">Wersje Brawl Stars</button>
+            
+            <button class="logout-btn" onclick="logout()">Wyloguj</button>
+            
+            <button class="toggle-sidebar-btn" onclick="toggleSidebar()">Schowaj menu</button>
+        </div>
+    </div>
+
+    <div class="main-content">
+
+        <div id="login-box" class="container">
+            <img class="brawl-logo" src="https://img.icons8.com/color/512/brawl-stars.png" alt="Logo">
+            <h2>Brawl Login</h2>
+            <div class="input-group">
+                <label>Login:</label>
+                <input type="text" id="username" placeholder="Wpisz login...">
+            </div>
+            <div class="input-group">
+                <label>Hasło:</label>
+                <input type="password" id="password" placeholder="Wpisz hasło...">
+            </div>
+            <button onclick="login()">Zaloguj się</button>
+            <div class="btn-row">
+                <button onclick="showRegisterBox()" style="background:#0088cc;">Zarejestruj się</button>
+                <button onclick="showRecoveryBox()" style="background:#9b59b6;">Odzyskaj hasło</button>
+            </div>
+            <p id="error" class="error-msg">Błędny login lub hasło!</p>
+        </div>
+
+        <div id="register-box" class="container hidden">
+            <img class="brawl-logo" src="https://img.icons8.com/color/512/brawl-stars.png" alt="Logo">
+            <h2>Rejestracja</h2>
+            <div class="input-group">
+                <label>Wybierz Login:</label>
+                <input type="text" id="reg-username" placeholder="Wpisz swój login...">
+            </div>
+            <div class="input-group">
+                <label>Wybierz Hasło:</label>
+                <input type="password" id="reg-password" placeholder="Wpisz swoje hasło...">
+            </div>
+            <button onclick="registerUser()" style="background: #2ecc71;">Stwórz konto</button>
+            <button onclick="backToLogin()" style="background: #555; margin-top: 10px; padding: 8px; font-size: 14px;">Anuluj</button>
+        </div>
+
+        <div id="recovery-box" class="container hidden">
+            <img class="brawl-logo" src="https://img.icons8.com/color/512/brawl-stars.png" alt="Logo">
+            <h2>Odzyskaj Hasło</h2>
+            <div class="input-group">
+                <label>Twój Login:</label>
+                <input type="text" id="rec-username" placeholder="Wpisz swój login...">
+            </div>
+            <div class="input-group">
+                <label>6-cyfrowy Numer (Kod):</label>
+                <input type="text" id="rec-code" placeholder="Wpisz kod odzyskiwania...">
+            </div>
+            <div class="input-group">
+                <label>Nowe Hasło:</label>
+                <input type="password" id="rec-new-password" placeholder="Wpisz nowe hasło...">
+            </div>
+            <button onclick="recoverPassword()" style="background: #9b59b6;">Zmień hasło</button>
+            <button onclick="backToLogin()" style="background: #555; margin-top: 10px; padding: 8px; font-size: 14px;">Powrót</button>
+        </div>
+
+        <div id="games-box" class="container container-wide hidden">
+            <h2>Salon Gier</h2>
+            <h3 style="font-size: 14px; color: #ffcc00; text-align: left; margin-bottom: 5px;">Wybierz grę serwerową:</h3>
+            <div class="games-list-scroll" id="games-list-container"></div>
+            <div id="active-game-zone" class="hidden game-interactive-zone">
+                <h3 id="active-game-title" style="color: #ffcc00;">Gra</h3>
+                <p id="active-game-desc" style="font-size: 12px; color: #ccc; margin-bottom: 10px; font-family: sans-serif;"></p>
+                <div class="click-target-btn" id="active-game-clicker-btn" onclick="playActiveGameClick()">⭐</div>
+                <div style="font-size: 16px; margin-top: 10px;">Twój wynik: <span id="active-game-score" style="color: #00ffff; font-size: 20px;">0</span></div>
+                <div style="font-size: 12px; color: #ffcc00; margin-top: 5px;">Zdobądź 50 kliknięć, aby dostać 20 Coins!</div>
+                <button onclick="closeActiveGame()" style="background: #555; margin-top: 15px; padding: 6px; font-size: 12px; width: auto;">Zamknij grę</button>
+            </div>
+        </div>
+
+        <div id="leaderboard-box" class="container container-wide hidden">
+            <h2>🏆 Tabele Wyników</h2>
+            <div class="input-group">
+                <label>Wybierz grę, aby zobaczyć ranking:</label>
+                <select id="leaderboard-game-select" onchange="renderLeaderboardTable()">
+                    <option value="Gem Clicker">💎 Gem Clicker</option>
+                    <option value="Spike Clicker">🌵 Spike Clicker</option>
+                </select>
+            </div>
+            <div class="leaderboard-scroll">
+                <table class="brawl-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 15%">Pozycja</th>
+                            <th style="width: 55%">Gracz</th>
+                            <th style="width: 30%">Kliknięcia</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboard-rows-container"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="shop-box" class="container container-wide hidden">
+            <h2>🏪 Sklep Brawl</h2>
+            <div id="admin-shop-form" class="hidden" style="background: rgba(255,255,255,0.05); padding: 15px; border: 2px dashed #ffcc00; border-radius: 8px; margin-bottom: 15px;">
+                <h3 style="font-size: 14px; color: #ffcc00; margin-bottom: 10px;">Zarządzanie Sklepem (Admin)</h3>
+                <div class="input-group">
+                    <label>Typ oferty:</label>
+                    <select id="shop-item-type" onchange="toggleShopInputFields()">
+                        <option value="item">Zwykły przedmiot/skin</option>
+                        <option value="avatar">Awatar na profilowe</option>
+                        <option value="background">Tło profilu (Sklep)</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Nazwa (np. Skin Leon / Tło Pustynne):</label>
+                    <input type="text" id="shop-item-name" placeholder="Wpisz nazwę...">
+                </div>
+                <div id="avatar-file-group" class="input-group hidden">
+                    <label id="file-group-label">Dodaj obrazek z komputera:</label>
+                    <div class="file-drop-zone" id="avatar-drop-zone" onclick="document.getElementById('shop-avatar-file').click()">
+                        Kliknij tutaj aby wybrać plik zdjęciowy lub przeciągnij go sem
+                        <input type="file" id="shop-avatar-file" accept="image/*" style="display:none;" onchange="handleAvatarFileSelect(this)">
+                        <img id="avatar-upload-preview" class="file-preview" src="">
+                        <img id="bg-upload-preview" class="file-preview-rect" src="">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Cena (Coins):</label>
+                    <input type="number" id="shop-item-price" placeholder="np. 50">
+                </div>
+                <button onclick="addShopOffer()" style="background: #2ecc71; padding: 8px; font-size: 14px;">Dodaj ofertę</button>
+            </div>
+            <h3 style="font-size: 14px; color: #ffcc00; text-align: left; margin-bottom: 5px;">Dostępne oferty:</h3>
+            <div class="shop-list-scroll" id="shop-items-container"></div>
+        </div>
+
+        <div id="donations-box" class="container hidden">
+            <h2>🎁 Wyślij Darowiznę</h2>
+            <p style="font-size: 12px; color: #ccc; margin-bottom: 15px; font-family: sans-serif;">Podziel się swoimi monetami z innym graczem na serwerze!</p>
+            <div class="input-group">
+                <label>Wybierz gracza:</label>
+                <select id="donation-target-user"></select>
+            </div>
+            <div class="input-group">
+                <label>Ilość Coins do przekazania:</label>
+                <input type="number" id="donation-amount" placeholder="Wpisz ile monet...">
+            </div>
+            <button onclick="sendDonation()" style="background: #e67e22;">Przekaż darowiznę</button>
+        </div>
+
+        <div id="my-avatars-box" class="container container-wide hidden">
+            <h2>🖼️ Twoja Garderoba Awatarów</h2>
+            <p style="font-size: 12px; color: #ccc; margin-bottom: 10px; font-family: sans-serif;">Wybierz kupiony wcześniej awatar, aby ustawić go na profil.</p>
+            <div class="avatar-grid-scroll">
+                <div class="avatar-grid" id="my-avatars-container"></div>
+            </div>
+        </div>
+
+        <div id="my-backgrounds-box" class="container container-wide hidden">
+            <h2>🎨 Twoja Kolekcja Tła</h2>
+            <p style="font-size: 12px; color: #ccc; margin-bottom: 10px; font-family: sans-serif;">Wybierz tło, aby zmienić wygląd panelu.</p>
+            <div class="avatar-grid-scroll">
+                <div class="avatar-grid" id="my-backgrounds-container"></div>
+            </div>
+        </div>
+
+        <div id="chat-box" class="container container-wide hidden">
+            <h2>Czat Gry</h2>
+            <div class="chat-tabs">
+                <button id="btn-tab-global" class="chat-tab-btn active" onclick="switchChatTab('global')">🌍 Ogólny serwerowy</button>
+                <button id="btn-tab-private" class="chat-tab-btn" onclick="switchChatTab('private')">🔒 Prywatny (DM)</button>
+            </div>
+            <div id="chat-pane-global">
+                <div class="chat-window" id="chat-global-container"></div>
+                <div class="chat-input-row">
+                    <input type="text" id="chat-global-input" placeholder="Napisz na czacie ogólnym...">
+                    <button onclick="sendGlobalMessage()" style="background: #2ecc71;">Wyślij</button>
+                </div>
+            </div>
+            <div id="chat-pane-private" class="hidden">
+                <div class="input-group" style="margin-bottom: 10px;">
+                    <label>Napisz do gracza:</label>
+                    <select id="chat-private-target" onchange="loadPrivateMessages()"></select>
+                </div>
+                <div class="chat-window" id="chat-private-container"></div>
+                <div class="chat-input-row">
+                    <input type="text" id="chat-private-input" placeholder="Napisz prywatną wiadomość...">
+                    <button onclick="sendPrivateMessage()" style="background: #ff4500;">Wyślij DM</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="announcements-box" class="container container-wide hidden">
+            <h2>Ogłoszenia</h2>
+            <div id="admin-announcement-form" class="hidden" style="background: rgba(255,255,255,0.05); padding: 15px; border: 2px dashed #ffcc00; border-radius: 8px; margin-bottom: 15px;">
+                <h3 style="font-size: 14px; color: #ffcc00; margin-bottom: 10px;">Dodaj nowe ogłoszenie (Admin)</h3>
+                <div class="input-group">
+                    <label>Tytuł ogłoszenia:</label>
+                    <input type="text" id="announcement-title" placeholder="Wpisz tytuł...">
+                </div>
+                <div class="input-group">
+                    <label>Treść ogłoszenia:</label>
+                    <textarea id="announcement-text" placeholder="Wpisz treść..."></textarea>
+                </div>
+                <button onclick="addAnnouncement()" style="background: #2ecc71;">Opublikuj ogłoszenie</button>
+            </div>
+            <h3 style="font-size: 14px; color: #ffcc00; text-align: left; margin-bottom: 5px;">Aktualne ogłoszenia:</h3>
+            <div class="announcement-list" id="announcements-container"></div>
+        </div>
+
+        <div id="create-account-box" class="container container-wide hidden">
+            <h2>Zarządzaj loginami i ekonomią</h2>
+            <div class="input-group">
+                <label>Nowy Login:</label>
+                <input type="text" id="new-username" placeholder="Nazwa użytkownika...">
+            </div>
+            <div class="input-group">
+                <label>Nowe Hasło:</label>
+                <input type="password" id="new-password" placeholder="Hasło...">
+            </div>
+            <button onclick="createUser()">Dodaj użytkownika</button>
+            <hr style="margin: 15px 0; border: 1px solid #ffcc00;">
+            <h3 style="font-size: 14px; color: #ffcc00; margin-bottom: 10px; text-transform: uppercase;">Zarządzaj monetami (Coins):</h3>
+            <div class="input-group">
+                <label>Wybierz użytkownika:</label>
+                <select id="admin-coins-user"></select>
+            </div>
+            <div class="input-group">
+                <label>Ilość Coins (użyj minusa np. -50, aby zabrać):</label>
+                <input type="number" id="admin-coins-amount" placeholder="np. 100 lub -50">
+            </div>
+            <button onclick="adminManageCoins()" style="background: #f1c40f; color: #000;">Zatwierdź Coins</button>
+            <hr style="margin: 15px 0; border: 1px solid #ffcc00;">
+            <h3 style="font-size: 14px; color: #ffcc00; margin-bottom: 10px; text-transform: uppercase;">Zmień hasło użytkownikowi:</h3>
+            <div class="input-group">
+                <label>Wybierz użytkownika:</label>
+                <select id="admin-select-user"></select>
+            </div>
+            <div class="input-group">
+                <label>Nowe hasło:</label>
+                <input type="password" id="admin-new-user-password" placeholder="Wpisz nowe hasło...">
+            </div>
+            <button onclick="adminChangeUserPassword()" style="background: #9b59b6;">Zmień hasło</button>
+            <hr style="margin: 15px 0; border: 1px solid #ffcc00;">
+            <h3 style="font-size: 14px; color: #ffcc00; margin-bottom: 5px;">Lista kont:</h3>
+            <div class="user-list" id="users-list-container"></div>
+        </div>
+
+        <div id="change-own-password-box" class="container hidden">
+            <h2>Zmień swoje hasło</h2>
+            <p id="welcome-password-msg" style="font-size: 12px; margin-bottom: 15px; color:#00ffff;"></p>
+            <div class="input-group">
+                <label>Nowe hasło:</label>
+                <input type="password" id="own-new-password" placeholder="Wpisz nowe hasło...">
+            </div>
+            <button onclick="changeOwnPassword()" style="background:#e67e22;">Zapisz nowe hasło</button>
+        </div>
+
+        <div id="versions-box" class="container hidden">
+            <h2>Wersje Brawl Stars</h2>
+            <div class="version-list">
+                <div class="version-card">
+                    <h4>Wersja v54.10 - Melodie</h4>
+                    <p>Dodano nową postać Melodie, nowe skiny oraz naprawiono błędy serwerowe.</p>
+                    <a href="#" class="download-link-btn" onclick="alert('Pobieranie v54.10...')">Pobierz plik APK</a>
+                </div>
+                <div class="version-card">
+                    <h4>Wersja Klasyczna v29.311</h4>
+                    <p>Stara dobra wersja ze starym systemem trofeów i klasycznymi postaciami.</p>
+                    <a href="#" class="download-link-btn" onclick="alert('Pobieranie v29.311...')">Pobierz plik APK</a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Adres URL Twojej bazy danych Firebase Realtime Database
+        const FIREBASE_URL = "https://loginy-4b39e-default-rtdb.firebaseio.com/";
+
+        let currentUsername = null;
+        let currentUserData = null;
+        let gameScore = 0;
+        let activeGameTitle = "";
+        let base64UploadedImage = ""; 
+
+        // Pomocnicza funkcja do pobierania i wysyłania danych do Firebase przez REST API
+        async function fbGet(path) {
+            try {
+                let response = await fetch(`${FIREBASE_URL}${path}.json`);
+                return await response.json();
+            } catch (e) {
+                console.error("Błąd pobierania z Firebase:", e);
+                return null;
+            }
+        }
+
+        async function fbPut(path, data) {
+            try {
+                await fetch(`${FIREBASE_URL}${path}.json`, {
+                    method: 'PUT',
+                    body: JSON.stringify(data)
+                });
+            } catch (e) {
+                console.error("Błąd zapisu do Firebase:", e);
+            }
+        }
+
+        // Inicjalizacja bazy danych i konta admina (jeśli nie istnieje)
+        async function forceAdminFix() {
+            let users = await fbGet("users") || {};
+            if (!users["admin"] || users["admin"].password !== "123") {
+                users["admin"] = { password: "123", role: "ADMIN", code: "999999", coins: 100, avatar: "", background: "", ownedAvatars: [], ownedBackgrounds: [], highscores: {} };
+                await fbPut("users", users);
+            }
+
+            let offers = await fbGet("shop_offers");
+            if (!offers) {
+                await fbPut("shop_offers", [
+                    { type: "item", name: "Mega Paka (80 Klejnotów)", price: 40 },
+                    { type: "item", name: "Skin Spike Maskotka", price: 80 },
+                    { type: "avatar", name: "Awatar Kruka", price: 30, img: "https://img.icons8.com/color/512/crow.png" },
+                    { type: "background", name: "Tło Cybernetyczne", price: 50, img: "https://images.unsplash.com/photo-1614064641938-3bbee52942c7?q=80&w=1920" }
+                ]);
+            }
+
+            let announcements = await fbGet("announcements");
+            if (!announcements) {
+                await fbPut("announcements", [
+                    { title: "📣 Witamy na serwerze!", text: "Rywalizuj z innymi graczami w salonie gier i kupuj nagrody w sklepie!" }
+                ]);
+            }
+        }
+        forceAdminFix();
+
+        // Obsługa ukrywania i odkrywania panelu
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar-panel');
+            const floatingBtn = document.getElementById('floating-open-btn');
+            
+            if (!currentUsername) return; 
+
+            sidebar.classList.toggle('collapsed');
+            
+            if (sidebar.classList.contains('collapsed')) {
+                floatingBtn.classList.remove('hidden');
+            } else {
+                floatingBtn.classList.add('hidden');
+            }
+        }
+
+        function updateProfileUI() {
+            if (currentUsername && currentUserData) {
+                document.getElementById('profile-user-coins').innerText = currentUserData.coins || 0;
+                const profileImg = document.getElementById('user-profile-logo');
+                if (currentUserData.avatar && currentUserData.avatar.trim() !== "") {
+                    profileImg.src = currentUserData.avatar;
+                } else {
+                    profileImg.src = "https://img.icons8.com/color/512/brawl-stars.png";
+                }
+                
+                if (currentUserData.background && currentUserData.background.trim() !== "") {
+                    document.body.style.background = `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('${currentUserData.background}') no-repeat center center fixed`;
+                } else {
+                    document.body.style.background = `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1920') no-repeat center center fixed`;
+                }
+                document.body.style.backgroundSize = "cover";
+            }
+        }
+
+        function toggleShopInputFields() {
+            const type = document.getElementById('shop-item-type').value;
+            const fileGroup = document.getElementById('avatar-file-group');
+            const label = document.getElementById('file-group-label');
+            
+            if (type === 'avatar' || type === 'background') {
+                fileGroup.classList.remove('hidden');
+                label.innerText = type === 'avatar' ? "Dodaj obrazek awatara z komputera:" : "Dodaj obrazek tła z komputera:";
+                document.getElementById('avatar-upload-preview').style.display = 'none';
+                document.getElementById('bg-upload-preview').style.display = 'none';
+                base64UploadedImage = "";
+            } else {
+                fileGroup.classList.add('hidden');
+            }
+        }
+
+        const dropZone = document.getElementById('avatar-drop-zone');
+        if (dropZone) {
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, (e) => { e.preventDefault(); dropZone.style.borderColor = '#2ecc71'; }, false);
+            });
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, (e) => { e.preventDefault(); dropZone.style.borderColor = '#ffcc00'; }, false);
+            });
+            dropZone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files.length > 0) {
+                    document.getElementById('shop-avatar-file').files = files;
+                    handleAvatarFileSelect(document.getElementById('shop-avatar-file'));
+                }
+            });
+        }
+
+        function handleAvatarFileSelect(input) {
+            const file = input.files[0];
+            const type = document.getElementById('shop-item-type').value;
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    base64UploadedImage = e.target.result;
+                    const previewAv = document.getElementById('avatar-upload-preview');
+                    const previewBg = document.getElementById('bg-upload-preview');
+                    if(type === 'avatar') {
+                        previewAv.src = base64UploadedImage;
+                        previewAv.style.display = 'block';
+                        previewBg.style.display = 'none';
+                    } else {
+                        previewBg.src = base64UploadedImage;
+                        previewBg.style.display = 'block';
+                        previewAv.style.display = 'none';
+                    }
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function hideAllBoxes() {
+            const boxes = [
+                'login-box', 'register-box', 'recovery-box',  
+                'games-box', 'leaderboard-box', 'shop-box', 'my-avatars-box', 'my-backgrounds-box', 'chat-box', 'announcements-box', 
+                'create-account-box', 'change-own-password-box', 'versions-box', 'donations-box'
+            ];
+            boxes.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+            document.getElementById('error').style.display = 'none';
+        }
+
+        function showRegisterBox() { hideAllBoxes(); document.getElementById('register-box').classList.remove('hidden'); }
+        function showRecoveryBox() { hideAllBoxes(); document.getElementById('recovery-box').classList.remove('hidden'); }
+        function backToLogin() { hideAllBoxes(); document.getElementById('login-box').classList.remove('hidden'); }
+
+        function showSection(sectionId) {
+            hideAllBoxes();
+            const target = document.getElementById(sectionId);
+            if (target) {
+                target.classList.remove('hidden');
+                if (sectionId === 'announcements-box') loadAnnouncements();
+                else if (sectionId === 'create-account-box') loadUsersList();
+                else if (sectionId === 'shop-box') loadShopOffers();
+                else if (sectionId === 'my-avatars-box') loadMyAvatars();
+                else if (sectionId === 'my-backgrounds-box') loadMyBackgrounds();
+                else if (sectionId === 'donations-box') setupDonationDropdown();
+                else if (sectionId === 'change-own-password-box') {
+                    document.getElementById('welcome-password-msg').innerText = `Zmieniasz hasło dla konta: ${currentUsername}`;
+                } else if (sectionId === 'games-box') loadGames();
+                else if (sectionId === 'leaderboard-box') renderLeaderboardTable();
+                else if (sectionId === 'chat-box') {
+                    switchChatTab('global');
+                }
+            }
+        }
+
+        async function registerUser() {
+            const user = document.getElementById('reg-username').value.trim();
+            const pass = document.getElementById('reg-password').value.trim();
+            if (user === "" || pass === "") { alert("Wypełnij wszystkie pola!"); return; }
+            
+            let users = await fbGet("users") || {};
+            if (users[user]) { alert("Taki użytkownik już istnieje!"); return; }
+            
+            const randomCode = Math.floor(100000 + Math.random() * 900000).toString();
+            users[user] = { password: pass, role: "USER", code: randomCode, coins: 0, avatar: "", background: "", ownedAvatars: [], ownedBackgrounds: [], highscores: {} };
+            
+            await fbPut("users", users);
+            alert(`Konto utworzone!\nTwój kod odzyskiwania: ${randomCode}`);
+            backToLogin();
+        }
+
+        async function login() {
+            const user = document.getElementById('username').value.trim();
+            const pass = document.getElementById('password').value.trim();
+            
+            let users = await fbGet("users") || {};
+
+            if (users[user] && users[user].password === pass) {
+                currentUsername = user;
+                currentUserData = users[user];
+                if (currentUserData.coins === undefined) currentUserData.coins = 0;
+                if (currentUserData.avatar === undefined) currentUserData.avatar = "";
+                if (currentUserData.background === undefined) currentUserData.background = "";
+                if (currentUserData.ownedAvatars === undefined) currentUserData.ownedAvatars = [];
+                if (currentUserData.ownedBackgrounds === undefined) currentUserData.ownedBackgrounds = [];
+                if (currentUserData.highscores === undefined) currentUserData.highscores = {};
+                
+                hideAllBoxes();
+                
+                document.getElementById('profile-user-name').innerText = user;
+                document.getElementById('profile-user-rank').innerText = `[${currentUserData.role}]`;
+                updateProfileUI();
+                
+                document.getElementById('sidebar-panel').classList.remove('collapsed');
+                showSection('games-box');
+                
+                const adminBtn = document.getElementById('sidebar-create-acc-btn');
+                const adminShopForm = document.getElementById('admin-shop-form');
+                const adminAnnouncementForm = document.getElementById('admin-announcement-form');
+                
+                if (currentUserData.role !== "ADMIN") {
+                    if(adminBtn) adminBtn.classList.add('hidden');
+                    if(adminShopForm) adminShopForm.classList.add('hidden');
+                    if(adminAnnouncementForm) adminAnnouncementForm.classList.add('hidden');
+                } else {
+                    if(adminBtn) adminBtn.classList.remove('hidden');
+                    if(adminShopForm) adminShopForm.classList.remove('hidden');
+                    if(adminAnnouncementForm) adminAnnouncementForm.classList.remove('hidden');
+                }
+            } else {
+                document.getElementById('error').style.display = 'block';
+            }
+        }
+
+        async function recoverPassword() {
+            const user = document.getElementById('rec-username').value.trim();
+            const code = document.getElementById('rec-code').value.trim();
+            const newPass = document.getElementById('rec-new-password').value.trim();
+            if (user === "" || code === "" || newPass === "") { alert("Wypełnij wszystkie pola!"); return; }
+            
+            let users = await fbGet("users") || {};
+            if (users[user] && users[user].code === code) {
+                users[user].password = newPass;
+                await fbPut("users", users);
+                alert("Hasło zostało pomyślnie zmienione!");
+                backToLogin();
+            } else {
+                alert("Nieprawidłowy login lub kod odzyskiwania!");
+            }
+        }
+
+        function loadGames() {
+            const container = document.getElementById('games-list-container');
+            if(!container) return;
+            const games = [
+                { title: "Gem Clicker", desc: "Zbieraj cenny fioletowy kruszec swoim refleksem!", icon: "💎" },
+                { title: "Spike Clicker", desc: "Klikaj w Spike'a, aby zdobywać punkty!", icon: "🌵" }
+            ];
+            container.innerHTML = "";
+            games.forEach(game => {
+                container.innerHTML += `
+                    <div class="game-item-row">
+                        <div class="game-header-row">
+                            <strong>${game.icon} ${game.title}</strong>
+                            <button class="btn-small play-btn" onclick="openGame('${game.title}', '${game.desc}', '${game.icon}')">Graj</button>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function openGame(title, desc, icon) {
+            document.getElementById('active-game-zone').classList.remove('hidden');
+            document.getElementById('active-game-title').innerText = icon + " " + title;
+            document.getElementById('active-game-desc').innerText = desc;
+            document.getElementById('active-game-clicker-btn').innerText = icon;
+            gameScore = 0;
+            activeGameTitle = title;
+            document.getElementById('active-game-score').innerText = gameScore;
+        }
+
+        async function playActiveGameClick() { 
+            gameScore++; 
+            document.getElementById('active-game-score').innerText = gameScore; 
+            
+            let users = await fbGet("users") || {};
+            if (users[currentUsername]) {
+                if (!users[currentUsername].highscores) users[currentUsername].highscores = {};
+                let currentBest = users[currentUsername].highscores[activeGameTitle] || 0;
+                if (gameScore > currentBest) {
+                    users[currentUsername].highscores[activeGameTitle] = gameScore;
+                }
+                if (gameScore % 50 === 0) {
+                    users[currentUsername].coins = (users[currentUsername].coins || 0) + 20;
+                    currentUserData.coins = users[currentUsername].coins;
+                    updateProfileUI();
+                    alert("🎉 Zdobyłeś 50 kliknięć! Otrzymujesz 20 Coins!");
+                }
+                await fbPut("users", users);
+                currentUserData.highscores = users[currentUsername].highscores;
+            }
+        }
+        
+        function closeActiveGame() { 
+            document.getElementById('active-game-zone').classList.add('hidden'); 
+            activeGameTitle = "";
+        }
+
+        async function renderLeaderboardTable() {
+            const selectedGame = document.getElementById('leaderboard-game-select').value;
+            const tableBody = document.getElementById('leaderboard-rows-container');
+            if(!tableBody) return;
+            tableBody.innerHTML = "";
+            
+            let users = await fbGet("users") || {};
+            let leaderboardData = [];
+            for (let name in users) {
+                let score = 0;
+                if(users[name].highscores && users[name].highscores[selectedGame]) {
+                    score = users[name].highscores[selectedGame];
+                }
+                leaderboardData.push({ username: name, score: score });
+            }
+            leaderboardData.sort((a, b) => b.score - a.score);
+            leaderboardData.forEach((player, index) => {
+                let position = index + 1;
+                let positionDisplay = `<span class="rank-number">#${position}</span>`;
+                if(position === 1) positionDisplay = "🥇";
+                else if(position === 2) positionDisplay = "🥈";
+                else if(position === 3) positionDisplay = "🥉";
+                let highlightStyle = player.username === currentUsername ? "style='color: #00ffff; font-weight: bold;'" : "";
+                tableBody.innerHTML += `
+                    <tr>
+                        <td style="text-align: center; font-size: 16px;">${positionDisplay}</td>
+                        <td ${highlightStyle}>${player.username}</td>
+                        <td style="color: #2ecc71; font-weight: bold; text-align: right; padding-right: 25px;">${player.score}</td>
+                    </tr>`;
+            });
+        }
+
+        async function loadShopOffers() {
+            const container = document.getElementById('shop-items-container');
+            const adminShopForm = document.getElementById('admin-shop-form');
+            if(!container) return;
+            if (currentUserData && currentUserData.role === 'ADMIN') {
+                if (adminShopForm) adminShopForm.classList.remove('hidden');
+            } else {
+                if (adminShopForm) adminShopForm.classList.add('hidden');
+            }
+            
+            const offers = await fbGet("shop_offers") || [];
+            container.innerHTML = "";
+            offers.forEach((offer, index) => {
+                if(!offer) return;
+                let deleteBtn = (currentUserData && currentUserData.role === 'ADMIN') ? `<button class="btn-small delete-btn" onclick="deleteShopOffer(${index})">Usuń</button>` : '';
+                let offerIcon = "";
+                let typeBadge = "";
+                if (offer.type === 'avatar') {
+                    offerIcon = `<img src="${offer.img}" class="shop-avatar-img" onerror="this.src='https://img.icons8.com/color/512/brawl-stars.png'">`;
+                    typeBadge = '<span style="font-size:10px; color:#00ffff; background:rgba(0,255,255,0.2); padding:2px 5px; border-radius:3px; margin-left:5px;">AWATAR</span>';
+                } else if (offer.type === 'background') {
+                    offerIcon = `<img src="${offer.img}" class="shop-bg-img" onerror="this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1920'">`;
+                    typeBadge = '<span style="font-size:10px; color:#9b59b6; background:rgba(155,89,182,0.2); padding:2px 5px; border-radius:3px; margin-left:5px;">TŁO</span>';
+                } else {
+                    offerIcon = `<div class="shop-avatar-img" style="display:flex; justify-content:center; align-items:center; font-size:24px;">🎁</div>`;
+                }
+                container.innerHTML += `
+                    <div class="shop-item-row">
+                        <div class="shop-header-row">
+                            <div class="shop-item-left">
+                                ${offerIcon}
+                                <div>
+                                    <strong style="color: #fff; font-size: 15px;">${offer.name} ${typeBadge}</strong>
+                                    <div style="color: #ffcc00; font-size: 13px; margin-top: 2px;">Cena: 🪙 ${offer.price} Coins</div>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:5px; align-items:center;">
+                                <button class="btn-small buy-btn" onclick="buyShopOffer(${index})">Kupuję</button>
+                                ${deleteBtn}
+                            </div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        async function addShopOffer() {
+            if (!currentUserData || currentUserData.role !== 'ADMIN') return;
+            const type = document.getElementById('shop-item-type').value;
+            const name = document.getElementById('shop-item-name').value.trim();
+            const price = parseInt(document.getElementById('shop-item-price').value);
+            if(name === "" || isNaN(price) || price < 0) { alert("Wpisz poprawną nazwę i cenę!"); return; }
+            if((type === 'avatar' || type === 'background') && base64UploadedImage === "") { alert("Musisz wybrać zdjęcie z komputera!"); return; }
+            
+            let offers = await fbGet("shop_offers") || [];
+            let newOffer = { type, name, price };
+            if (type === 'avatar' || type === 'background') { newOffer.img = base64UploadedImage; }
+            offers.push(newOffer);
+            
+            await fbPut("shop_offers", offers);
+            document.getElementById('shop-item-name').value = "";
+            document.getElementById('shop-item-price').value = "";
+            document.getElementById('shop-avatar-file').value = "";
+            document.getElementById('avatar-upload-preview').style.display = 'none';
+            document.getElementById('bg-upload-preview').style.display = 'none';
+            base64UploadedImage = "";
+            loadShopOffers();
+            alert("Dodano ofertę do sklepu!");
+        }
+
+        async function deleteShopOffer(index) {
+            if (!currentUserData || currentUserData.role !== 'ADMIN') return;
+            let offers = await fbGet("shop_offers") || [];
+            offers.splice(index, 1);
+            await fbPut("shop_offers", offers);
+            loadShopOffers();
+        }
+
+        async function buyShopOffer(index) {
+            let offers = await fbGet("shop_offers") || [];
+            let offer = offers[index];
+            if (!offer) return;
+            
+            let users = await fbGet("users") || {};
+            let currentCoins = users[currentUsername].coins || 0;
+            if (currentCoins < offer.price) { alert("❌ Za mało monet!"); return; }
+            
+            if (offer.type === 'avatar') {
+                if (!users[currentUsername].ownedAvatars) users[currentUsername].ownedAvatars = [];
+                if (users[currentUsername].ownedAvatars.some(a => a.img === offer.img)) { alert("❌ Posiadasz już ten awatar!"); return; }
+                users[currentUsername].ownedAvatars.push({ name: offer.name, img: offer.img });
+                users[currentUsername].avatar = offer.img; 
+                alert(`🎉 Kupiono awatar ${offer.name}! Został automatycznie ustawiony.`);
+            } else if (offer.type === 'background') {
+                if (!users[currentUsername].ownedBackgrounds) users[currentUsername].ownedBackgrounds = [];
+                if (users[currentUsername].ownedBackgrounds.some(b => b.img === offer.img)) { alert("❌ Posiadasz już to tło!"); return; }
+                users[currentUsername].ownedBackgrounds.push({ name: offer.name, img: offer.img });
+                users[currentUsername].background = offer.img;
+                alert(`🎉 Kupiono tło ${offer.name}! Zostało automatycznie ustawione.`);
+            } else {
+                alert(`🎉 Zakupiono pomyślnie przedmiot: ${offer.name}!`);
+            }
+            users[currentUsername].coins = currentCoins - offer.price;
+            await fbPut("users", users);
+            currentUserData = users[currentUsername];
+            updateProfileUI();
+        }
+
+        async function setupDonationDropdown() {
+            const dropdown = document.getElementById('donation-target-user');
+            if (!dropdown) return;
+            
+            let users = await fbGet("users") || {};
+            dropdown.innerHTML = "";
+            let count = 0;
+            for (let name in users) {
+                if (name !== currentUsername) {
+                    let opt = document.createElement('option'); opt.value = name; opt.innerText = name;
+                    dropdown.appendChild(opt); count++;
+                }
+            }
+            if (count === 0) { dropdown.innerHTML = `<option value="">Brak innych użytkowników</option>`; }
+        }
+
+        async function sendDonation() {
+            const targetUser = document.getElementById('donation-target-user').value;
+            const amount = parseInt(document.getElementById('donation-amount').value);
+            if (!targetUser) { alert("Wybierz poprawnego gracza!"); return; }
+            if (isNaN(amount) || amount <= 0) { alert("Wpisz poprawną ilość Coins do wysłania!"); return; }
+            
+            let users = await fbGet("users") || {};
+            let currentSenderCoins = users[currentUsername].coins || 0;
+            if (currentSenderCoins < amount) { alert("❌ Masz za mało Coins, aby wysłać taką darowiznę!"); return; }
+            
+            users[currentUsername].coins = currentSenderCoins - amount;
+            users[targetUser].coins = (users[targetUser].coins || 0) + amount;
+            
+            await fbPut("users", users);
+            currentUserData = users[currentUsername];
+            updateProfileUI();
+            document.getElementById('donation-amount').value = "";
+            alert(`🎁 Wysłałeś pomyślnie ${amount} Coins do gracza ${targetUser}!`);
+        }
+
+        function loadMyAvatars() {
+            const container = document.getElementById('my-avatars-container');
+            if(!container) return;
+            container.innerHTML = "";
+            let owned = currentUserData.ownedAvatars || [];
+            let defaultAvatar = { name: "Podstawowy", img: "https://img.icons8.com/color/512/brawl-stars.png" };
+            let allAvatarsToDisplay = [defaultAvatar, ...owned];
+            allAvatarsToDisplay.forEach(av => {
+                let isCurrent = (currentUserData.avatar === av.img || (av.name === "Podstawowy" && (currentUserData.avatar === "" || currentUserData.avatar === "https://img.icons8.com/color/512/brawl-stars.png")));
+                let activeClass = isCurrent ? 'active' : '';
+                let buttonText = isCurrent ? 'Aktywny' : 'Ustaw';
+                let buttonStyle = isCurrent ? 'background:#555; pointer-events:none;' : '';
+                container.innerHTML += `
+                    <div class="avatar-card ${activeClass}">
+                        <img src="${av.img}" onerror="this.src='https://img.icons8.com/color/512/brawl-stars.png'">
+                        <div style="font-size:12px; font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; width:100%;">${av.name}</div>
+                        <button class="btn-small select-btn" style="${buttonStyle}" onclick="setProfileAvatar('${av.img}')">${buttonText}</button>
+                    </div>`;
+            });
+        }
+
+        async function setProfileAvatar(imgUrl) {
+            let users = await fbGet("users") || {};
+            if(imgUrl === "https://img.icons8.com/color/512/brawl-stars.png") { users[currentUsername].avatar = ""; } else { users[currentUsername].avatar = imgUrl; }
+            await fbPut("users", users);
+            currentUserData = users[currentUsername];
+            updateProfileUI(); loadMyAvatars();
+            alert("🖼️ Zmieniono zdjęcie profilowe!");
+        }
+
+        function loadMyBackgrounds() {
+            const container = document.getElementById('my-backgrounds-container');
+            if(!container) return;
+            container.innerHTML = "";
+            let owned = currentUserData.ownedBackgrounds || [];
+            let defaultBg = { name: "Domyślne fioletowe", img: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1920" };
+            let allBgsToDisplay = [defaultBg, ...owned];
+            allBgsToDisplay.forEach(bg => {
+                let isCurrent = (currentUserData.background === bg.img || (bg.name === "Domyślne fioletowe" && (currentUserData.background === "" || currentUserData.background === "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1920")));
+                let activeClass = isCurrent ? 'active' : '';
+                let buttonText = isCurrent ? 'Aktywne' : 'Ustaw';
+                let buttonStyle = isCurrent ? 'background:#555; pointer-events:none;' : '';
+                container.innerHTML += `
+                    <div class="avatar-card ${activeClass}">
+                        <img src="${bg.img}" class="bg-preview-rect" onerror="this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1920'">
+                        <div style="font-size:12px; font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; width:100%;">${bg.name}</div>
+                        <button class="btn-small select-btn" style="${buttonStyle}" onclick="setProfileBackground('${bg.img}')">${buttonText}</button>
+                    </div>`;
+            });
+        }
+
+        async function setProfileBackground(imgUrl) {
+            let users = await fbGet("users") || {};
+            if(imgUrl === "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1920") { users[currentUsername].background = ""; } else { users[currentUsername].background = imgUrl; }
+            await fbPut("users", users);
+            currentUserData = users[currentUsername];
+            updateProfileUI(); loadMyBackgrounds();
+            alert("🎨 Tło panelu zostało zmienione!");
+        }
+
+        function switchChatTab(type) {
+            document.getElementById('btn-tab-global').classList.remove('active');
+            document.getElementById('btn-tab-private').classList.remove('active');
+            document.getElementById('chat-pane-global').classList.add('hidden');
+            document.getElementById('chat-pane-private').classList.add('hidden');
+            if (type === 'global') {
+                document.getElementById('btn-tab-global').classList.add('active');
+                document.getElementById('chat-pane-global').classList.remove('hidden');
+                loadGlobalMessages();
+            } else {
+                document.getElementById('btn-tab-private').classList.add('active');
+                document.getElementById('chat-pane-private').classList.remove('hidden');
+                setupPrivateChatDropdown(); loadPrivateMessages();
+            }
+        }
+
+        async function loadGlobalMessages() {
+            const container = document.getElementById('chat-global-container');
+            if (!container) return;
+            const messages = await fbGet("chat_global") || [];
+            container.innerHTML = "";
+            messages.forEach(msg => {
+                if(!msg) return;
+                container.innerHTML += `<div class="chat-message"><span class="msg-meta" style="color:#ffcc00">${msg.sender}:</span><span style="font-size:13px; color:#fff;">${msg.text}</span></div>`;
+            });
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function sendGlobalMessage() {
+            const input = document.getElementById('chat-global-input');
+            const text = input.value.trim();
+            if (text === "") return;
+            let messages = await fbGet("chat_global") || [];
+            messages.push({ sender: currentUsername, text: text });
+            await fbPut("chat_global", messages);
+            input.value = ""; loadGlobalMessages();
+        }
+
+        async function setupPrivateChatDropdown() {
+            const dropdown = document.getElementById('chat-private-target');
+            if (!dropdown) return;
+            let users = await fbGet("users") || {};
+            dropdown.innerHTML = "";
+            let count = 0;
+            for (let name in users) {
+                if (name !== currentUsername) {
+                    let opt = document.createElement('option'); opt.value = name; opt.innerText = name;
+                    dropdown.appendChild(opt); count++;
+                }
+            }
+            if(count === 0) {
+                let opt = document.createElement('option'); opt.value = ""; opt.innerText = "Brak innych użytkowników";
+                dropdown.appendChild(opt);
+            }
+        }
+
+        async function loadPrivateMessages() {
+            const container = document.getElementById('chat-private-container');
+            const targetUser = document.getElementById('chat-private-target').value;
+            if (!container) return;
+            container.innerHTML = "";
+            if (!targetUser) {
+                container.innerHTML = `<div style="color:#888; padding:10px;">Wybierz gracza z listy powyżej, aby zacząć pisać.</div>`;
+                return;
+            }
+            const allPrivMessages = await fbGet("chat_private") || [];
+            const filtered = allPrivMessages.filter(msg => 
+                msg && ((msg.sender === currentUsername && msg.receiver === targetUser) || (msg.sender === targetUser && msg.receiver === currentUsername))
+            );
+            filtered.forEach(msg => {
+                let color = msg.sender === currentUsername ? "#00ffff" : "#ffaa00";
+                container.innerHTML += `<div class="chat-message"><span class="msg-meta" style="color:${color}">${msg.sender} ➔ ${msg.receiver}:</span><span style="font-size:13px; color:#fff;">${msg.text}</span></div>`;
+            });
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function sendPrivateMessage() {
+            const input = document.getElementById('chat-private-input');
+            const targetUser = document.getElementById('chat-private-target').value;
+            const text = input.value.trim();
+            if (text === "" || !targetUser) return;
+            let allPrivMessages = await fbGet("chat_private") || [];
+            allPrivMessages.push({ sender: currentUsername, receiver: targetUser, text: text });
+            await fbPut("chat_private", allPrivMessages);
+            input.value = ""; loadPrivateMessages();
+        }
+
+        async function loadAnnouncements() {
+            const container = document.getElementById('announcements-container');
+            if(!container) return;
+            let announcements = await fbGet("announcements") || [];
+            container.innerHTML = "";
+            
+            // Filtrowanie ewentualnych pustych elementów w tablicy
+            announcements = announcements.filter(a => a !== null);
+
+            if(announcements.length === 0) {
+                container.innerHTML = '<div style="color:#aaa; text-align:center; padding:10px;">Brak aktualnych ogłoszeń.</div>';
+                return;
+            }
+            announcements.forEach((ann, index) => {
+                let deleteBtn = (currentUserData && currentUserData.role === 'ADMIN') ? `<button class="btn-small delete-btn" onclick="deleteAnnouncement(${index})" style="margin-top:10px;">Usuń ogłoszenie</button>` : '';
+                container.innerHTML += `
+                    <div class="announcement-item" style="background:rgba(255,255,255,0.05); padding:12px; border-radius:6px; margin-bottom:10px; width:100%; border:1px solid rgba(255,255,255,0.1);">
+                        <strong>${ann.title}</strong>
+                        <p style="color:#ccc; font-size:13px; margin-top:5px; font-family:sans-serif; line-height:1.4;">${ann.text}</p>
+                        ${deleteBtn}
+                    </div>`;
+            });
+        }
+
+        async function addAnnouncement() {
+            if (!currentUserData || currentUserData.role !== 'ADMIN') return;
+            const title = document.getElementById('announcement-title').value.trim();
+            const text = document.getElementById('announcement-text').value.trim();
+            if(title === "" || text === "") { alert("Wypełnij tytuł i treść!"); return; }
+            
+            let announcements = await fbGet("announcements") || [];
+            announcements = announcements.filter(a => a !== null);
+            announcements.unshift({ title: "📣 " + title, text: text });
+            
+            await fbPut("announcements", announcements);
+            document.getElementById('announcement-title').value = "";
+            document.getElementById('announcement-text').value = "";
+            loadAnnouncements();
+            alert("Dodano ogłoszenie!");
+        }
+
+        async function deleteAnnouncement(index) {
+            if (!currentUserData || currentUserData.role !== 'ADMIN') return;
+            let announcements = await fbGet("announcements") || [];
+            announcements.splice(index, 1);
+            await fbPut("announcements", announcements);
+            loadAnnouncements();
+        }
+
+        async function adminManageCoins() {
+            if (!currentUserData || currentUserData.role !== 'ADMIN') return;
+            const targetUser = document.getElementById('admin-coins-user').value;
+            const amount = parseInt(document.getElementById('admin-coins-amount').value);
+            if (!targetUser || isNaN(amount)) { alert("Wybierz użytkownika i podaj prawidłową liczbę!"); return; }
+            
+            let users = await fbGet("users") || {};
+            if (users[targetUser]) {
+                let currentVal = users[targetUser].coins || 0;
+                let newVal = currentVal + amount;
+                if (newVal < 0) newVal = 0; 
+                users[targetUser].coins = newVal;
+                
+                await fbPut("users", users);
+                if (targetUser === currentUsername) {
+                    currentUserData.coins = newVal; updateProfileUI();
+                }
+                alert(`Pomyślnie zaktualizowano monety dla ${targetUser}. Obecny stan: 🪙 ${newVal}`);
+                document.getElementById('admin-coins-amount').value = ""; loadUsersList();
+            }
+        }
+
+        async function changeOwnPassword() {
+            const newPass = document.getElementById('own-new-password').value.trim();
+            if(newPass === "") return;
+            
+            let users = await fbGet("users") || {};
+            users[currentUsername].password = newPass;
+            await fbPut("users", users);
+            alert("Hasło zmienione!");
+            document.getElementById('own-new-password').value = "";
+        }
+
+        async function loadUsersList() {
+            const container = document.getElementById('users-list-container');
+            const selectPassword = document.getElementById('admin-select-user');
+            const selectCoins = document.getElementById('admin-coins-user');
+            if(!container || !selectPassword || !selectCoins) return;
+            
+            let users = await fbGet("users") || {};
+            container.innerHTML = ""; selectPassword.innerHTML = ""; selectCoins.innerHTML = "";
+            for (let name in users) {
+                let opt1 = document.createElement('option'); opt1.value = name; opt1.innerText = name;
+                let opt2 = document.createElement('option'); opt2.value = name; opt2.innerText = name;
+                selectPassword.appendChild(opt1); selectCoins.appendChild(opt2);
+                let badgeClass = users[name].role === 'ADMIN' ? 'badge-admin' : 'badge-user';
+                let actionBtn = name !== 'admin' ? `<button class="btn-small delete-btn" onclick="deleteUser('${name}')">Usuń</button>` : '';
+                let securityCode = users[name].code || "Brak";
+                container.innerHTML += `
+                    <div class="user-item" style="flex-direction: column; align-items: flex-start; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 5px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.1);">
+                        <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                            <span>👤 <strong>${name}</strong> <span class="badge ${badgeClass}">${users[name].role}</span></span>
+                            ${actionBtn}
+                        </div>
+                        <div style="margin-top: 5px; font-family: sans-serif; font-size: 12px; color: #ccc;">
+                            <div>🔑 Hasło: <span style="color: #00ffff;">${users[name].password}</span></div>
+                            <div>🔢 Kod (6 cyfr): <span style="color: #e74c3c; font-weight: bold;">${securityCode}</span></div>
+                            <div>🪙 Coins: <span style="color: #ffcc00; font-weight: bold;">${users[name].coins || 0}</span></div>
+                        </div>
+                    </div>`;
+            }
+        }
+
+        async function createUser() {
+            if (!currentUserData || currentUserData.role !== 'ADMIN') return;
+            const user = document.getElementById('new-username').value.trim();
+            const pass = document.getElementById('new-password').value.trim();
+            if(user === "" || pass === "") return;
+            
+            let users = await fbGet("users") || {};
+            if(users[user]) { alert("Użytkownik już istnieje!"); return; }
+            const randomCode = Math.floor(100000 + Math.random() * 900000).toString();
+            users[user] = { password: pass, role: "USER", code: randomCode, coins: 0, avatar: "", background: "", ownedAvatars: [], ownedBackgrounds: [], highscores: {} };
+            
+            await fbPut("users", users);
+            document.getElementById('new-username').value = "";
+            document.getElementById('new-password').value = ""; loadUsersList();
+        }
+
+        async function deleteUser(name) {
+            if (!currentUserData || currentUserData.role !== 'ADMIN') return;
+            if(confirm(`Czy na pewno chcesz usunąć użytkownika ${name}?`)) {
+                let users = await fbGet("users") || {};
+                delete users[name]; 
+                await fbPut("users", users);
+                loadUsersList();
+            }
+        }
+
+        async function adminChangeUserPassword() {
+            if (!currentUserData || currentUserData.role !== 'ADMIN') return;
+            const targetUser = document.getElementById('admin-select-user').value;
+            const newPass = document.getElementById('admin-new-user-password').value.trim();
+            if(newPass === "") return;
+            
+            let users = await fbGet("users") || {};
+            users[targetUser].password = newPass;
+            await fbPut("users", users);
+            alert(`Zmieniono hasło użytkownikowi ${targetUser}!`);
+            document.getElementById('admin-new-user-password').value = ""; loadUsersList();
+        }
+
+        function logout() {
+            currentUsername = null; currentUserData = null;
+            hideAllBoxes(); closeActiveGame();
+            document.getElementById('sidebar-panel').classList.add('collapsed');
+            document.getElementById('floating-open-btn').classList.add('hidden');
+            document.getElementById('login-box').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
